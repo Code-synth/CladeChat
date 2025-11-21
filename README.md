@@ -15,7 +15,7 @@ You also need to have some libraries:
 
 After downloading source code, you need to go to the directory and run `make` command. This will compile both client and server.
 
-For compiling only one, switch to 'server' or 'client' directory and run `make` command.
+For compiling client, you need to have CMake (minimum 3.17.0) installed. Compiling server only needs `make` program.
 
 **Warning!:** After compiling the source code, you also need to run `make cert` command to copy certificates to source directories.
 
