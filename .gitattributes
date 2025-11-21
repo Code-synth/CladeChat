@@ -1,0 +1,8 @@
+*.png binary
+
+*.md diff=markdown
+*.cpp diff=cpp
+*.cc diff=cpp
+*.c diff=cpp
+*.hh diff=cpp
+*.h diff=cpp
