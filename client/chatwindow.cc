@@ -25,7 +25,7 @@ extern char SERVER_HOST[32];
 
 char buf[256];
 extern char userns[8];
-extern int session;
+extern char session[37];
 
 extern chat_thread chat_threads[8];
 
@@ -77,18 +77,21 @@ void put_msg(char id, char *msg2, char *name, chat_thread *cthread)
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
-	char buf[64];
+	char buf[256];
 	memset(buf, 0, sizeof(buf));
 	buf[0] = 'P';
+	memcpy(buf + 1, session, sizeof(session));
+	/*
 	buf[1] = session & 0xFF;
 	buf[2] = (session & 0xFF00) >> 8;
 	buf[3] = (session & 0xFF0000) >> 16;
 	buf[4] = (session & 0xFF000000) >> 24;
-	buf[5] = id & 0xFF;
-	buf[6] = (id & 0xFF00) >> 8;
-	buf[7] = (id & 0xFF0000) >> 16;
-	buf[8] = (id & 0xFF000000) >> 24;
-	int i = 0, j = 9;
+	*/
+	buf[38] = id & 0xFF;
+	buf[39] = (id & 0xFF00) >> 8;
+	buf[40] = (id & 0xFF0000) >> 16;
+	buf[41] = (id & 0xFF000000) >> 24;
+	int i = 0, j = 42;
 	for (
 		; msg2[i];
 		buf[j] = msg2[i], i++, j++

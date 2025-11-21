@@ -13,16 +13,17 @@
 #include <sqlite3.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <uuid/uuid.h>
 sqlite3 *db;
 SSL *ssl;
 
 char query[128];
 int conn;
-char buf[64];
+char buf[256];
 
 struct sessions_ {
-	int s;
-	int id;
+	int userid;
+	char id[37];
 	int time;
 } sessions[96];
 int s = 0;
@@ -50,28 +51,30 @@ int number(char *str)
 
 void new_session(char *argv)
 {
-	sessions[s].s = s;
-	sessions[s].id = number(argv);
+	uuid_t binuuid;
+	uuid_generate_random(binuuid);
+	char *uuid = (char*)malloc(37);
+	uuid_unparse_lower(binuuid, uuid);
+	printf("New UUID = %s\n", uuid);
+	strcpy(sessions[s].id, uuid);
+	sessions[s].userid = number(argv);
 	sessions[s].time = time(0);
-	buf[1] = s & 0xFF;
-	buf[2] = (s & 0xFF00) >> 8;
-	buf[3] = (s & 0xFF0000) >> 16;
-	buf[4] = (s & 0xFF000000) >> 24;
-	buf[5] = sessions[s].id & 0xFF;
-	buf[6] = (sessions[s].id & 0xFF00) >> 8;
-	buf[7] = (sessions[s].id & 0xFF0000) >> 16;
-	buf[8] = (sessions[s].id & 0xFF000000) >> 24;
+	memcpy(buf + 1, sessions[s].id, sizeof(sessions[s].id));
+	buf[38] = sessions[s].userid & 0xFF;
+	buf[39] = (sessions[s].userid & 0xFF00) >> 8;
+	buf[40] = (sessions[s].userid & 0xFF0000) >> 16;
+	buf[41] = (sessions[s].userid & 0xFF000000) >> 24;
 	s++;
 }
 
 int ss = 0;
 
-char check_session(int session)
+char check_session(char session[37])
 {
 	int i = s;
 	for (ss = 0;; ss++)
 		if (sessions[ss].time) {
-			if (sessions[ss].s == session)
+			if (!strcmp(sessions[ss].id, session))
 				return 1;
 			i--;
 			if (!i) return 0;
@@ -91,7 +94,7 @@ int find_known_func(
 	sprintf(
 		query2,
 		"SELECT COUNT(*) from ignore WHERE `from` = %d AND `to` = %d",
-		sessions[ss].id,
+		sessions[ss].userid,
 		number(argv[0])
 	);
 	sqlite3_stmt *stmt;
@@ -146,7 +149,7 @@ int msg_get_func(
 	for (; argv[3][i]; buf[j] = argv[3][i], i++, j++);
 	buf[j] = 0;
 	SSL_write(ssl, buf, sizeof(buf));
-	if (number(argv[2]) == sessions[ss].id) {
+	if (number(argv[2]) == sessions[ss].userid) {
 		char query2[128];
 		memset(query2, 0, sizeof(query2));
 		strcat(query2, "UPDATE msg SET readen = 1 WHERE id = ");
@@ -178,7 +181,7 @@ int user_find_func(
 		query2,
 		"SELECT COUNT(*) FROM msg WHERE `from` = %d AND `to` = %d AND readen = 0",
 		number(argv[0]),
-		sessions[ss].id
+		sessions[ss].userid
 	);
 	int rc = sqlite3_prepare_v2(db, query2, -1, &stmt, 0);
 	if (rc != SQLITE_OK) {
@@ -194,7 +197,7 @@ int user_find_func(
 	buf[6] = (id & 0xFF000000) >> 24;
 	stat = 1;
 	for (; j < 2; j++) {
-		if (sessions[j].time && sessions[j].id == id) {
+		if (sessions[j].time && sessions[j].userid == id) {
 			buf[1] = 1;
 			return 0;
 		}
@@ -294,6 +297,7 @@ int main(void)
 	}
 	char str[32];
 	char i, j , l;
+	char session[37];
 	for (;; SSL_shutdown(ssl), SSL_free(ssl), close(conn)) {
 		if (listen(sock, 5)) {
 			puts("error while listening server");
@@ -310,7 +314,7 @@ int main(void)
 			for (;;) {
 				memset(buf, 0, sizeof(buf));
 				if (!SSL_read(ssl, buf, sizeof(buf))) break;
-				printf("Got message from a client = %d\n", buf[0]);
+				printf("Got message from a client = '%c'\n", buf[0]);
 				if (buf[0] == 'A') {
 					memset(query, 0, sizeof(query));
 					strcat(query, "SELECT * FROM users WHERE name = '");
@@ -332,25 +336,18 @@ int main(void)
 					} else stat = 0;
 				}
 				if (buf[0] == 'L') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
+					memcpy(session, buf + 1, sizeof(session));
 					if (!check_session(session))
 						continue;
-					sessions[ss].s = 0;
-					sessions[ss].id = 0;
+					memset(sessions[ss].id, 0, sizeof(sessions[ss].id));
+					sessions[ss].userid = 0;
 					sessions[ss].time = 0;
 					if (ss == s-1) s--;
 				}
 				if (buf[0] == 'I') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
-					printf("Session = %d\n", session);
+					memcpy(session, buf + 1, sizeof(session));
+					printf("Session = %s\n", session);
+					printf("User ID = %d\n", sessions[ss].userid);
 					if (!check_session(session)) {
 						buf[0] = 0;
 						SSL_write(ssl, buf, 1);
@@ -360,7 +357,7 @@ int main(void)
 					sprintf(
 						query,
 						"SELECT DISTINCT `from` FROM msg WHERE `to` = %d",
-						sessions[ss].id
+						sessions[ss].userid
 					);
 					printf("sql = %s\n", query);
 					if (sqlite3_exec(db, query, find_known_func, 0, 0) != SQLITE_OK) {
@@ -372,19 +369,15 @@ int main(void)
 					if (stat) stat = 0;
 				}
 				if (buf[0] == 'U') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
-					printf("Session = %d\n", session);
+					memcpy(session, buf + 1, sizeof(session));
+					printf("Session = %s\n", session);
 					if (!check_session(session)) {
 						buf[0] = 0;
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
 					for (
-						i = 0, j = 5;
+						i = 0, j = 38;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -404,34 +397,30 @@ int main(void)
 					} else stat = 0, SSL_write(ssl, buf, sizeof(buf));
 				}
 				if (buf[0] == 'G' || buf[0] == 'g') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
+					memcpy(session, buf + 1, sizeof(session));
 					if (!check_session(session)) {
 						buf[0] = 0;
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
 					int id =
-						buf[5]
-						| buf[6] << 8
-						| buf[7] << 16
-						| buf[8] << 24;
+						buf[38]
+						| buf[39] << 8
+						| buf[40] << 16
+						| buf[41] << 24;
 					memset(query, 0, sizeof(query));
 					if (buf[0] == 'G') {
 						sprintf(
 							query,
 							"SELECT * FROM msg WHERE `from` = %d AND `to` = %d OR `from` = %d AND `to` = %d",
-							id, sessions[ss].id,
-							sessions[ss].id, id
+							id, sessions[ss].userid,
+							sessions[ss].userid, id
 						);
 					} else {
 						sprintf(
 							query,
 							"SELECT * FROM msg WHERE `from` = %d AND `to` = %d AND readen = 0",
-							id, sessions[ss].id
+							id, sessions[ss].userid
 						);
 					}
 					if (sqlite3_exec(db, query, msg_get_func, 0, 0) != SQLITE_OK) {
@@ -443,24 +432,20 @@ int main(void)
 					if (stat) stat = 0;
 				}
 				if (buf[0] == 'P') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
+					memcpy(session, buf + 1, sizeof(session));
 					if (!check_session(session)) {
 						buf[0] = 0;
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
 					int id =
-						buf[5]
-						| buf[6] << 8
-						| buf[7] << 16
-						| buf[8] << 24;
+						buf[38]
+						| buf[39] << 8
+						| buf[40] << 16
+						| buf[41] << 24;
 					memset(str, 0, sizeof(str));
 					for (
-						i = 0, j = 9;
+						i = 0, j = 42;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -485,7 +470,7 @@ int main(void)
 						query,
 						"INSERT INTO msg(id, `from`, `to`, msg, readen) VALUES(%d, %d, %d, '%s', 0)",
 						sqlite3_column_int(stmt, 0),
-						sessions[ss].id, id, strc.c_str()
+						sessions[ss].userid, id, strc.c_str()
 					);
 					if (sqlite3_exec(db, query, 0, 0, 0) != SQLITE_OK) {
 						puts("error while inserting a row into table 'msg'");
@@ -493,24 +478,20 @@ int main(void)
 					}
 				}
 				if (buf[0] == 'B') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
+					memcpy(session, buf + 1, sizeof(session));
 					if (!check_session(session)) {
 						buf[0] = 0;
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
 					int id =
-						buf[5]
-						| buf[6] << 8
-						| buf[7] << 16
-						| buf[8] << 24;
+						buf[38]
+						| buf[39] << 8
+						| buf[40] << 16
+						| buf[41] << 24;
 					memset(str, 0, sizeof(str));
 					for (
-						i = 0, j = 9;
+						i = 0, j = 42;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -519,7 +500,7 @@ int main(void)
 					sprintf(
 						query,
 						"INSERT INTO ignore(`from`, `to`) VALUES(%d, %d)",
-						sessions[ss].id, id
+						sessions[ss].userid, id
 					);
 					if (sqlite3_exec(db, query, 0, 0, 0) != SQLITE_OK) {
 						puts("error while inserting a row into table 'ignore'");
@@ -527,24 +508,20 @@ int main(void)
 					}
 				}
 				if (buf[0] == 'b') {
-					int session =
-						buf[1]
-						| buf[2] << 8
-						| buf[3] << 16
-						| buf[4] << 24;
+					memcpy(session, buf + 1, sizeof(session));
 					if (!check_session(session)) {
 						buf[0] = 0;
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
 					int id =
-						buf[5]
-						| buf[6] << 8
-						| buf[7] << 16
-						| buf[8] << 24;
+						buf[38]
+						| buf[39] << 8
+						| buf[40] << 16
+						| buf[41] << 24;
 					memset(str, 0, sizeof(str));
 					for (
-						i = 0, j = 9;
+						i = 0, j = 42;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -553,7 +530,7 @@ int main(void)
 					sprintf(
 						query,
 						"DELETE FROM ignore WHERE `from` = %d AND `to` =  %d",
-						sessions[ss].id, id
+						sessions[ss].userid, id
 					);
 					if (sqlite3_exec(db, query, 0, 0, 0) != SQLITE_OK) {
 						puts("error while deleting a row from table 'ignore'");

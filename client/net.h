@@ -23,7 +23,7 @@ char userns[8];
 
 char logged = 0;
 
-int session = 0;
+char session[37];
 int sock = 0;
 
 SSL *ssl;

@@ -17,6 +17,7 @@ public:
 	explicit AddAccount(QObject *parent);
 private:
 	char user[24];
+	void closeEvent(QCloseEvent *event);
 	QLabel *label;
 	QLineEdit *text;
 	QPushButton *addb;

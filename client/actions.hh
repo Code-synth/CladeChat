@@ -36,4 +36,4 @@ void fill_view(Window *parent)
 }
 
 char info_user(char *usern);
-char bufi[64];
+char bufi[256];

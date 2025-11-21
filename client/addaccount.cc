@@ -7,6 +7,8 @@
 #include <openssl/err.h>
 #include <openssl/bio.h>
 
+extern AddAccount *addw;
+
 extern contact contacts[8];
 extern char cn;
 
@@ -14,7 +16,7 @@ extern int users;
 extern char userns[8];
 extern char info_user(char *usern);
 
-extern char bufi[64];
+extern char bufi[256];
 
 extern void block_user(char id, char block);
 
@@ -114,4 +116,10 @@ AddAccount::AddAccount(QObject *parent)
 	connect(this->addb, SIGNAL(clicked()), this, SLOT(addFunc()));
 	connect(this, SIGNAL(addItem(int, char*, char*)), parent, SLOT(addItem(int, char*, char*)));
 	this->show();
+}
+
+void AddAccount::closeEvent(QCloseEvent *event)
+{
+	delete addw;
+	addw = NULL;
 }

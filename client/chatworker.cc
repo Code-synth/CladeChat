@@ -20,9 +20,9 @@ extern char SERVER_HOST[32];
 
 extern int users;
 extern char userns[8];
-extern int session;
+extern char session[37];
 
-extern char bufi[64];
+extern char bufi[256];
 
 extern SSL_CTX *ctx;
 
@@ -72,18 +72,21 @@ char get_msg(char newly, int user, char *usern, char *msgt, chat_thread *cthread
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
-	char buf[64];
+	char buf[256];
 	memset(buf, 0, sizeof(buf));
 	if (!newly) buf[0] = 'g';
 	else buf[0] = 'G';
+	memcpy(buf + 1, session, sizeof(session));
+	/*
 	buf[1] = session & 0xFF;
 	buf[2] = (session & 0xFF00) >> 8;
 	buf[3] = (session & 0xFF0000) >> 16;
 	buf[4] = (session & 0xFF000000) >> 24;
-	buf[5] = user & 0xFF;
-	buf[6] = (user & 0xFF00) >> 8;
-	buf[7] = (user & 0xFF0000) >> 16;
-	buf[8] = (user & 0xFF000000) >> 24;
+	*/
+	buf[38] = user & 0xFF;
+	buf[39] = (user & 0xFF00) >> 8;
+	buf[40] = (user & 0xFF0000) >> 16;
+	buf[41] = (user & 0xFF000000) >> 24;
 	BIO_write(webg, buf, sizeof(buf));
 	memset(msgt, 0, sizeof(msgt));
 	int j = 0;
@@ -118,7 +121,7 @@ char get_msg(char newly, int user, char *usern, char *msgt, chat_thread *cthread
 		j++;
 		msgt[j] = ' ';
 		j++;
-		char msg2[64];
+		char msg2[256];
 		memset(msg2, 0, sizeof(msg2));
 		int k = 0;
 		for (

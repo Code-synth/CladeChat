@@ -17,6 +17,8 @@
 char SERVER_ADDR[32] = "127.0.0.1";
 char SERVER_HOST[32] = "127.0.0.1:26";
 
+AddAccount *addw;
+
 void block_user(char id, char block)
 {
 	BIO *webp = BIO_new_ssl_connect(ctx);
@@ -61,18 +63,21 @@ void block_user(char id, char block)
 		ERR_print_errors_fp(stderr);
 		exit(1);
 	}
-	char buf[64];
+	char buf[256];
 	memset(buf, 0, sizeof(buf));
 	if (block) buf[0] = 'B';
 	else buf[0] = 'b';
+	memcpy(buf + 1, session, sizeof(session));
+	/*
 	buf[1] = session & 0xFF;
 	buf[2] = (session & 0xFF00) >> 8;
 	buf[3] = (session & 0xFF0000) >> 16;
 	buf[4] = (session & 0xFF000000) >> 24;
-	buf[5] = id & 0xFF;
-	buf[6] = (id & 0xFF00) >> 8;
-	buf[7] = (id & 0xFF0000) >> 16;
-	buf[8] = (id & 0xFF000000) >> 24;
+	*/
+	buf[38] = id & 0xFF;
+	buf[39] = (id & 0xFF00) >> 8;
+	buf[40] = (id & 0xFF0000) >> 16;
+	buf[41] = (id & 0xFF000000) >> 24;
 	BIO_write(webp, buf, sizeof(buf));
 	BIO_free(outp);
 	if (webp)
@@ -209,6 +214,10 @@ void Window::showChatFunc()
 
 void logout()
 {
+	if (addw) {
+		delete addw;
+		addw = NULL;
+	}
 	int i = 0, j = 0;
 	for (
 		; i < ct;
@@ -226,13 +235,10 @@ void logout()
 			BIO_free_all(web);
 		return;
 	}
-	char buf[64];
+	char buf[256];
 	memset(buf, 0, sizeof(buf));
 	buf[0] = 'L';
-	buf[1] = session & 0xFF;
-	buf[2] = (session & 0xFF00) >> 8;
-	buf[3] = (session & 0xFF0000) >> 16;
-	buf[4] = (session & 0xFF000000) >> 24;
+	memcpy(buf + 1, session, sizeof(session));
 	BIO_write(web, buf, sizeof(buf));
 	BIO_free(out);
 	if (web)
@@ -275,7 +281,7 @@ void Window::signInFunc()
 	memset(pass, 0, sizeof(pass));
 	strcpy(userns, this->usert->displayText().toLocal8Bit().data());
 	strcpy(pass, this->passt->text().toLocal8Bit());
-	char buf[64];
+	char buf[256];
 	memset(buf, 0, sizeof(buf));
 	buf[0] = 'A';
 	int i = 0, j = 1;
@@ -293,20 +299,20 @@ void Window::signInFunc()
 	memset(buf, 0, sizeof(buf));
 	BIO_read(web, buf, sizeof(buf));
 	if (buf[0]) {
-		session = buf[1]
-			| buf[2] << 8
-			| buf[3] << 16
-			| buf[4] << 24;
-		users = buf[5]
-			| buf[6] << 8
-			| buf[7] << 16
-			| buf[8] << 24;
+		memcpy(session, buf + 1, sizeof(session));
+		users = buf[38]
+			| buf[39] << 8
+			| buf[40] << 16
+			| buf[41] << 24;
 		memset(buf, 0, sizeof(buf));
 		buf[0] = 'I';
+		memcpy(buf + 1, session, sizeof(session));
+		/*
 		buf[1] = session & 0xFF;
 		buf[2] = (session & 0xFF00) >> 8;
 		buf[3] = (session & 0xFF0000) >> 16;
 		buf[4] = (session & 0xFF000000) >> 24;
+		*/
 		BIO_write(web, buf, sizeof(buf));
 		for (;;) {
 			memset(buf, 0, sizeof(buf));
@@ -457,7 +463,12 @@ void Window::signInFunc()
 		this->uworker = new userWorker(this);
 		logged++;
 	} else {
-		puts("Authorization failed!");
+		QMessageBox::critical(
+			this,
+			"Clade Chat",
+			"Invalid username or password entered.",
+			QMessageBox::Ok
+		);
 		BIO_free(out);
 		if (web)
 			BIO_free_all(web);
@@ -476,7 +487,9 @@ void Window::aboutProduct()
 
 void Window::add()
 {
-	AddAccount *addw = new AddAccount(this);
+	if (logged && !addw) {
+		addw = new AddAccount(this);
+	}
 }
 
 void Window::quit()

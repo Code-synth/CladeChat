@@ -1,6 +1,6 @@
 build:
 	cd server && make
-	cd client && qmake && make
+	cd client && mkdir -p build && cd build && cmake .. && make
 
 cert: domain.crt domain.key
 	cp domain.crt server
@@ -15,4 +15,4 @@ clean:
 	-rm client/domain.key
 	-rm client/chat
 	-cd server && make clean
-	-cd client && make clean
+	-cd client && rm -rf build
