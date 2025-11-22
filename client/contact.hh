@@ -3,7 +3,7 @@
 class contact {
 public:
 	contact() { }
-	int id;
+	char id[37];
 	char name[8];
 	char online;
 	char readen;

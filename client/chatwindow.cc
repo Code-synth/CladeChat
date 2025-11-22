@@ -33,7 +33,7 @@ extern SSL_CTX *ctx;
 
 const char PREFFERED_CIPHERS[] = "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4";
 
-void put_msg(char id, char *msg2, char *name, chat_thread *cthread)
+void put_msg(char id[37], char *msg2, char *name, chat_thread *cthread)
 {
 	BIO *webp = BIO_new_ssl_connect(ctx);
 	if (webp < (BIO*)0) {
@@ -81,17 +81,8 @@ void put_msg(char id, char *msg2, char *name, chat_thread *cthread)
 	memset(buf, 0, sizeof(buf));
 	buf[0] = 'P';
 	memcpy(buf + 1, session, sizeof(session));
-	/*
-	buf[1] = session & 0xFF;
-	buf[2] = (session & 0xFF00) >> 8;
-	buf[3] = (session & 0xFF0000) >> 16;
-	buf[4] = (session & 0xFF000000) >> 24;
-	*/
-	buf[38] = id & 0xFF;
-	buf[39] = (id & 0xFF00) >> 8;
-	buf[40] = (id & 0xFF0000) >> 16;
-	buf[41] = (id & 0xFF000000) >> 24;
-	int i = 0, j = 42;
+	memcpy(buf + 38, id, 37);
+	int i = 0, j = 75;
 	for (
 		; msg2[i];
 		buf[j] = msg2[i], i++, j++

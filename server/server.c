@@ -17,15 +17,16 @@
 sqlite3 *db;
 SSL *ssl;
 
-char query[128];
+char query[600];
 int conn;
 char buf[256];
 
 struct sessions_ {
-	int userid;
+	char userid[37];
 	char id[37];
 	int time;
 } sessions[96];
+
 int s = 0;
 int stat = 0;
 
@@ -57,13 +58,10 @@ void new_session(char *argv)
 	uuid_unparse_lower(binuuid, uuid);
 	printf("New UUID = %s\n", uuid);
 	strcpy(sessions[s].id, uuid);
-	sessions[s].userid = number(argv);
+	memcpy(sessions[s].userid, argv, 37);
 	sessions[s].time = time(0);
 	memcpy(buf + 1, sessions[s].id, sizeof(sessions[s].id));
-	buf[38] = sessions[s].userid & 0xFF;
-	buf[39] = (sessions[s].userid & 0xFF00) >> 8;
-	buf[40] = (sessions[s].userid & 0xFF0000) >> 16;
-	buf[41] = (sessions[s].userid & 0xFF000000) >> 24;
+	memcpy(buf + 38, sessions[s].userid, 37);
 	s++;
 }
 
@@ -89,13 +87,13 @@ int find_known_func(
 )
 {
 	NotUsed = 0;
-	char query2[128];
+	char query2[600];
 	memset(query2, 0, sizeof(query2));
 	sprintf(
 		query2,
-		"SELECT COUNT(*) from ignore WHERE `from` = %d AND `to` = %d",
+		"SELECT COUNT(*) from ignore WHERE `from` = '%s' AND `to` = '%s'",
 		sessions[ss].userid,
-		number(argv[0])
+		argv[0]
 	);
 	sqlite3_stmt *stmt;
 	int rc = sqlite3_prepare_v2(db, query2, -1, &stmt, 0);
@@ -110,9 +108,9 @@ int find_known_func(
 	}
 	memset(buf, 0, sizeof(buf));
 	buf[0] = 1;
-	buf[1] = number(argv[0]);
+	memcpy(buf + 1, argv[0], 37);
 	memset(query2, 0, sizeof(query2));
-	sprintf(query2, "SELECT * FROM users WHERE id = %d", number(argv[0]));
+	sprintf(query2, "SELECT * FROM users WHERE id = '%s'", argv[0]);
 	rc = sqlite3_prepare_v2(db, query2, -1, &stmt, 0);
 	if (rc != SQLITE_OK) {
 		puts("error while selecting row from table 'users'");
@@ -124,7 +122,7 @@ int find_known_func(
 	memset(str, 0, sizeof(str));
 	strcpy(str, (char*)sqlite3_column_text(stmt, 1));
 	printf("User = %s\n", str);
-	int i = 0, j = 2;
+	int i = 0, j = 38;
 	for (
 		; str[i];
 		buf[j] = str[i], i++, j++
@@ -144,13 +142,13 @@ int msg_get_func(
 	printf("msg = %s\n", argv[3]);
 	memset(buf, 0, sizeof(buf));
 	buf[0] = 1;
-	buf[1] = number(argv[1]);
-	char i = 0, j = 2;
+	memcpy(buf + 1, argv[1], 37);
+	char i = 0, j = 38;
 	for (; argv[3][i]; buf[j] = argv[3][i], i++, j++);
 	buf[j] = 0;
 	SSL_write(ssl, buf, sizeof(buf));
-	if (number(argv[2]) == sessions[ss].userid) {
-		char query2[128];
+	if (!strcmp(argv[2], sessions[ss].userid)) {
+		char query2[600];
 		memset(query2, 0, sizeof(query2));
 		strcat(query2, "UPDATE msg SET readen = 1 WHERE id = ");
 		strcat(query2, argv[0]);
@@ -170,19 +168,18 @@ int user_find_func(
 )
 {
 	NotUsed = 0;
-	int id = number(argv[0]);
-	printf("id = %d\n", id);
 	char j = 0;
 	buf[0] = 1;
 	sqlite3_stmt *stmt;
-	char query2[128];
+	char query2[600];
 	memset(query2, 0, sizeof(query2));
 	sprintf(
 		query2,
-		"SELECT COUNT(*) FROM msg WHERE `from` = %d AND `to` = %d AND readen = 0",
-		number(argv[0]),
+		"SELECT COUNT(*) FROM msg WHERE `from` = '%s' AND `to` = '%s' AND readen = 0",
+		argv[0],
 		sessions[ss].userid
 	);
+	printf("Query = %s\n", query2);
 	int rc = sqlite3_prepare_v2(db, query2, -1, &stmt, 0);
 	if (rc != SQLITE_OK) {
 		puts("error while selecting row from table 'users'");
@@ -191,13 +188,10 @@ int user_find_func(
 	}
 	sqlite3_step(stmt);
 	buf[2] = sqlite3_column_int(stmt, 0);
-	buf[3] = id & 0xFF;
-	buf[4] = (id & 0xFF00) >> 8;
-	buf[5] = (id & 0xFF0000) >> 16;
-	buf[6] = (id & 0xFF000000) >> 24;
+	memcpy(buf + 3, argv[0], 37);
 	stat = 1;
 	for (; j < 2; j++) {
-		if (sessions[j].time && sessions[j].userid == id) {
+		if (sessions[j].time && !strcmp(sessions[j].userid, argv[0])) {
 			buf[1] = 1;
 			return 0;
 		}
@@ -227,7 +221,7 @@ int main(void)
 		exit(1);
 	}
 	if (
-		sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS users(id INT, name TEXT, passw TEXT);", 0, 0, 0)
+		sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS users(id TEXT, name TEXT, passw TEXT);", 0, 0, 0)
 		!= SQLITE_OK
 	) {
 		puts("error: Unable to create table 'users'");
@@ -235,7 +229,7 @@ int main(void)
 		exit(2);
 	}
 	if (
-		sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS msg(id INT, `from` INT, `to` INT, msg TEXT, readen INT);", 0, 0, 0)
+		sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS msg(id INT, `from` TEXT, `to` TEXT, msg TEXT, readen INT);", 0, 0, 0)
 		!= SQLITE_OK
 	) {
 		puts("error: Unable to create table 'msg'");
@@ -243,7 +237,7 @@ int main(void)
 		exit(2);
 	}
 	if (
-		sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS ignore(`from` INT, `to` INT);", 0, 0, 0)
+		sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS ignore(`from` TEXT, `to` TEXT);", 0, 0, 0)
 		!= SQLITE_OK
 	) {
 		puts("error: Unable to create table 'ignore'");
@@ -340,7 +334,7 @@ int main(void)
 					if (!check_session(session))
 						continue;
 					memset(sessions[ss].id, 0, sizeof(sessions[ss].id));
-					sessions[ss].userid = 0;
+					memset(sessions[ss].userid, 0, sizeof(sessions[ss].userid));
 					sessions[ss].time = 0;
 					if (ss == s-1) s--;
 				}
@@ -356,7 +350,7 @@ int main(void)
 					memset(query, 0, sizeof(query));
 					sprintf(
 						query,
-						"SELECT DISTINCT `from` FROM msg WHERE `to` = %d",
+						"SELECT DISTINCT `from` FROM msg WHERE `to` = '%s'",
 						sessions[ss].userid
 					);
 					printf("sql = %s\n", query);
@@ -403,23 +397,20 @@ int main(void)
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
-					int id =
-						buf[38]
-						| buf[39] << 8
-						| buf[40] << 16
-						| buf[41] << 24;
+					char id[37];
+					memcpy(id, buf + 38, 37);
 					memset(query, 0, sizeof(query));
 					if (buf[0] == 'G') {
 						sprintf(
 							query,
-							"SELECT * FROM msg WHERE `from` = %d AND `to` = %d OR `from` = %d AND `to` = %d",
+							"SELECT * FROM msg WHERE `from` = '%s' AND `to` = '%s' OR `from` = '%s' AND `to` = '%s'",
 							id, sessions[ss].userid,
 							sessions[ss].userid, id
 						);
 					} else {
 						sprintf(
 							query,
-							"SELECT * FROM msg WHERE `from` = %d AND `to` = %d AND readen = 0",
+							"SELECT * FROM msg WHERE `from` = '%s' AND `to` = '%s' AND readen = 0",
 							id, sessions[ss].userid
 						);
 					}
@@ -438,14 +429,11 @@ int main(void)
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
-					int id =
-						buf[38]
-						| buf[39] << 8
-						| buf[40] << 16
-						| buf[41] << 24;
+					char id[37];
+					memcpy(id, buf + 38, 37);
 					memset(str, 0, sizeof(str));
 					for (
-						i = 0, j = 42;
+						i = 0, j = 75;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -468,7 +456,7 @@ int main(void)
 					memset(query, 0, sizeof(query));
 					sprintf(
 						query,
-						"INSERT INTO msg(id, `from`, `to`, msg, readen) VALUES(%d, %d, %d, '%s', 0)",
+						"INSERT INTO msg(id, `from`, `to`, msg, readen) VALUES(%d, '%s', '%s', '%s', 0)",
 						sqlite3_column_int(stmt, 0),
 						sessions[ss].userid, id, strc.c_str()
 					);
@@ -484,14 +472,11 @@ int main(void)
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
-					int id =
-						buf[38]
-						| buf[39] << 8
-						| buf[40] << 16
-						| buf[41] << 24;
+					char id[37];
+					memcpy(id, buf + 38, 37);
 					memset(str, 0, sizeof(str));
 					for (
-						i = 0, j = 42;
+						i = 0, j = 75;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -499,7 +484,7 @@ int main(void)
 					memset(query, 0, sizeof(query));
 					sprintf(
 						query,
-						"INSERT INTO ignore(`from`, `to`) VALUES(%d, %d)",
+						"INSERT INTO ignore(`from`, `to`) VALUES('%s', '%s')",
 						sessions[ss].userid, id
 					);
 					if (sqlite3_exec(db, query, 0, 0, 0) != SQLITE_OK) {
@@ -514,14 +499,11 @@ int main(void)
 						SSL_write(ssl, buf, 1);
 						continue;
 					}
-					int id =
-						buf[38]
-						| buf[39] << 8
-						| buf[40] << 16
-						| buf[41] << 24;
+					char id[37];
+					memcpy(id, buf + 38, 37);
 					memset(str, 0, sizeof(str));
 					for (
-						i = 0, j = 42;
+						i = 0, j = 75;
 						buf[j];
 						str[i] = buf[j], i++, j++
 					);
@@ -529,7 +511,7 @@ int main(void)
 					memset(query, 0, sizeof(query));
 					sprintf(
 						query,
-						"DELETE FROM ignore WHERE `from` = %d AND `to` =  %d",
+						"DELETE FROM ignore WHERE `from` = '%s' AND `to` =  '%s'",
 						sessions[ss].userid, id
 					);
 					if (sqlite3_exec(db, query, 0, 0, 0) != SQLITE_OK) {

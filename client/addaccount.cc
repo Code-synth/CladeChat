@@ -18,7 +18,7 @@ extern char info_user(char *usern);
 
 extern char bufi[256];
 
-extern void block_user(char id, char block);
+extern void block_user(char id[37], char block);
 
 void update_store_addacc(int i, AddAccount *parent)
 {
@@ -68,10 +68,7 @@ void AddAccount::addFunc()
 	contacts[l] = contact();
 	strcpy(contacts[l].name, this->user);
 	info_user(this->user);
-	contacts[l].id = bufi[3]
-		| bufi[4] << 8
-		| bufi[5] << 16
-		| bufi[6] << 24;
+	memcpy(contacts[l].id, bufi + 3, 37);
 	contacts[l].online = bufi[1];
 	contacts[l].readen = bufi[2];
 	contacts[l].newly = 0;
@@ -79,6 +76,7 @@ void AddAccount::addFunc()
 	l++;
 	memset(fn, 0, sizeof(fn));
 	block_user(contacts[i].id, 0);
+	this->close();
 }
 
 void AddAccount::check()

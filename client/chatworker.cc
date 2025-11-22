@@ -18,7 +18,7 @@
 extern char SERVER_ADDR[32];
 extern char SERVER_HOST[32];
 
-extern int users;
+extern char users[37];
 extern char userns[8];
 extern char session[37];
 
@@ -28,7 +28,7 @@ extern SSL_CTX *ctx;
 
 const char PREFFERED_CIPHERS[] = "HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4";
 
-char get_msg(char newly, int user, char *usern, char *msgt, chat_thread *cthread)
+char get_msg(char newly, char user[37], char *usern, char *msgt, chat_thread *cthread)
 {
 	BIO *webg = BIO_new_ssl_connect(ctx);
 	if (webg < (BIO*)0) {
@@ -77,16 +77,7 @@ char get_msg(char newly, int user, char *usern, char *msgt, chat_thread *cthread
 	if (!newly) buf[0] = 'g';
 	else buf[0] = 'G';
 	memcpy(buf + 1, session, sizeof(session));
-	/*
-	buf[1] = session & 0xFF;
-	buf[2] = (session & 0xFF00) >> 8;
-	buf[3] = (session & 0xFF0000) >> 16;
-	buf[4] = (session & 0xFF000000) >> 24;
-	*/
-	buf[38] = user & 0xFF;
-	buf[39] = (user & 0xFF00) >> 8;
-	buf[40] = (user & 0xFF0000) >> 16;
-	buf[41] = (user & 0xFF000000) >> 24;
+	memcpy(buf + 38, user, 37);
 	BIO_write(webg, buf, sizeof(buf));
 	memset(msgt, 0, sizeof(msgt));
 	int j = 0;
@@ -101,10 +92,13 @@ char get_msg(char newly, int user, char *usern, char *msgt, chat_thread *cthread
 	if (newly) {
 		cthread->msg_text->setPlainText(msgt);
 	}
+	char user_[37];
 	for (;;) {
 		char *str;
-		if (buf[1] != user) str = userns;
-		else str = usern;
+		memcpy(user_, buf + 1, 37);
+		if (strcmp(user_, user)) {
+			str = userns;
+		} else str = usern;
 		int i = 0;
 		for (
 			; str[i];
@@ -125,7 +119,7 @@ char get_msg(char newly, int user, char *usern, char *msgt, chat_thread *cthread
 		memset(msg2, 0, sizeof(msg2));
 		int k = 0;
 		for (
-			i = 2;
+			i = 38;
 			buf[i];
 			msgt[j] = buf[i], msg2[k] = buf[i], i++, j++, k++
 		);
@@ -284,7 +278,7 @@ void chatWorker::doWorkLoop()
 		userns,
 		this->cthread->cont->name
 	);
-	if (this->cthread->cont->id != users && !get_msg(
+	if (strcmp(this->cthread->cont->id, users) && !get_msg(
 		0,
 		this->cthread->cont->id,
 		this->cthread->cont->name,

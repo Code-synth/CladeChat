@@ -78,12 +78,6 @@ char info_user(char *usern)
 	memset(bufi, 0, sizeof(bufi));
 	bufi[0] = 'U';
 	memcpy(bufi + 1, session, sizeof(session));
-	/*
-	bufi[1] = session & 0xFF;
-	bufi[2] = (session & 0xFF00) >> 8;
-	bufi[3] = (session & 0xFF0000) >> 16;
-	bufi[4] = (session & 0xFF000000) >> 24;
-	*/
 	int i = 38, j = 0;
 	for (
 		; usern[j];

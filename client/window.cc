@@ -19,7 +19,7 @@ char SERVER_HOST[32] = "127.0.0.1:26";
 
 AddAccount *addw;
 
-void block_user(char id, char block)
+void block_user(char id[37], char block)
 {
 	BIO *webp = BIO_new_ssl_connect(ctx);
 	if (webp < (BIO*)0) {
@@ -68,16 +68,7 @@ void block_user(char id, char block)
 	if (block) buf[0] = 'B';
 	else buf[0] = 'b';
 	memcpy(buf + 1, session, sizeof(session));
-	/*
-	buf[1] = session & 0xFF;
-	buf[2] = (session & 0xFF00) >> 8;
-	buf[3] = (session & 0xFF0000) >> 16;
-	buf[4] = (session & 0xFF000000) >> 24;
-	*/
-	buf[38] = id & 0xFF;
-	buf[39] = (id & 0xFF00) >> 8;
-	buf[40] = (id & 0xFF0000) >> 16;
-	buf[41] = (id & 0xFF000000) >> 24;
+	memcpy(buf + 38, id, 37);
 	BIO_write(webp, buf, sizeof(buf));
 	BIO_free(outp);
 	if (webp)
@@ -135,25 +126,26 @@ void Window::rmFunc()
 				"%s/users.txt",
 				userns
 			);
-			fp = fopen(fn, "r+");
-			memset(str2, 0, sizeof(str2));
-			i = 0;
-			for (c=fgetc(fp);;) {
-				for (
-					i = 0;
-					c != '\n';
-					str2[i] = c, c=fgetc(fp), i++
-				);
-				str2[i] = 0;
-				if (!strcmp(user, str2)) {
-					fseek(fp, ftell(fp) - 2, 0);
-					fprintf(fp, "&");
-					break;
+			if ((fp = fopen(fn, "r+"))) {
+				memset(str2, 0, sizeof(str2));
+				i = 0;
+				for (c=fgetc(fp);;) {
+					for (
+						i = 0;
+						c != '\n';
+						str2[i] = c, c=fgetc(fp), i++
+					);
+					str2[i] = 0;
+					if (!strcmp(user, str2)) {
+						fseek(fp, ftell(fp) - 2, 0);
+						fprintf(fp, "&");
+						break;
+					}
+					for (; (c=fgetc(fp)) == '\n';);
+					if (c == EOF) break;
 				}
-				for (; (c=fgetc(fp)) == '\n';);
-				if (c == EOF) break;
+				fclose(fp);
 			}
-			fclose(fp);
 			fill_view(this);
 			return;
 		}
@@ -307,18 +299,12 @@ void Window::signInFunc()
 		memset(buf, 0, sizeof(buf));
 		buf[0] = 'I';
 		memcpy(buf + 1, session, sizeof(session));
-		/*
-		buf[1] = session & 0xFF;
-		buf[2] = (session & 0xFF00) >> 8;
-		buf[3] = (session & 0xFF0000) >> 16;
-		buf[4] = (session & 0xFF000000) >> 24;
-		*/
 		BIO_write(web, buf, sizeof(buf));
 		for (;;) {
 			memset(buf, 0, sizeof(buf));
 			BIO_read(web, buf, sizeof(buf));
 			if (!buf[0]) break;
-			int l = 0, i = 2, j = 0;
+			int l = 0, i = 38, j = 0;
 			for (
 				; l < cn && contacts[l].name[0];
 				l++
@@ -385,10 +371,7 @@ void Window::signInFunc()
 		) {
 			if (contacts[i].name[0]) {
 				info_user(contacts[i].name);
-				contacts[i].id = bufi[3]
-					| bufi[4] << 8
-					| bufi[5] << 16
-					| bufi[6] << 24;
+				memcpy(contacts[i].id, bufi + 3, 37);
 				contacts[i].online = bufi[1];
 				contacts[i].readen = bufi[2];
 				if (contacts[i].readen) {
