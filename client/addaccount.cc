@@ -75,7 +75,10 @@ void AddAccount::addFunc()
 	update_store_addacc(l, this);
 	l++;
 	memset(fn, 0, sizeof(fn));
-	block_user(contacts[i].id, 0);
+	block_user(contacts[l].id, 0);
+	if (l == cn + 1) {
+		cn++;
+	}
 	this->close();
 }
 
