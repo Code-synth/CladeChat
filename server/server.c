@@ -53,7 +53,7 @@ int number(char *str)
 void new_session(char *argv)
 {
 	uuid_t binuuid;
-	uuid_generate_random(binuuid);
+	uuid_generate_time_safe(binuuid);
 	char *uuid = (char*)malloc(37);
 	uuid_unparse_lower(binuuid, uuid);
 	printf("New UUID = %s\n", uuid);
