@@ -436,6 +436,8 @@ void Window::signInFunc()
 		sprintf(str, "Welcome back,\n%s", userns);
 		this->welcome = new QLabel(str, this);
 		this->welcome->move(10, 30);
+		this->welcome->setFixedWidth(230);
+		this->welcome->setFixedHeight(50);
 		this->welcome->show();
 		this->signout = new QPushButton("Sign out", this);
 		this->signout->move(90, 55);
@@ -487,16 +489,16 @@ void Window::initWidgets()
 	labelu->move(10, 25);
 	labelu->show();
 	usert = new QLineEdit(0, this);
-	usert->resize(80, 25);
-	usert->move(85, 30);
+	usert->resize(90, 25);
+	usert->move(95, 30);
 	usert->show();
 	labelp = new QLabel("password:", this);
 	labelp->move(10, 55);
 	labelp->show();
 	passt = new QLineEdit(0, this);
 	passt->setEchoMode(QLineEdit::Password);
-	passt->resize(80, 25);
-	passt->move(85, 60);
+	passt->resize(90, 25);
+	passt->move(95, 60);
 	passt->show();
 	signin = new QPushButton("Sign in", this);
 	QPixmap signinp("key.png");
@@ -510,17 +512,17 @@ void Window::initWidgets()
 
 Window::Window()
 {
-	this->setWindowTitle("Messager");
-	this->setFixedSize(QSize(180, 270));
+	this->setWindowTitle("Clade Chat");
+	this->setFixedSize(QSize(200, 270));
 	this->setWindowFlags(Qt::Dialog | Qt::MSWindowsFixedSizeDialogHint);
 	showb = new QPushButton("View chat", this);
 	QPixmap showp("view.png");
 	showb->setIcon(showp);
-	showb->resize(80, 25);
+	showb->resize(100, 25);
 	showb->move(90, 90);
 	this->initWidgets();
 	view = new QTreeWidget(this);
-	view->resize(160, 138);
+	view->resize(180, 138);
 	view->move(10, 120);
 	view->setColumnCount(2);
 	QStringList strl;

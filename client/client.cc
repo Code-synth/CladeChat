@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	QApplication a(argc, argv);
-	a.setStyleSheet("QPushButton { border: 2px outset #777; background: #fff; } QLineEdit { border: 1px solid #000; background: #fff; }");
+	//a.setStyleSheet("QPushButton { border: 2px outset #777; background: #fff; } QLineEdit { border: 1px solid #000; background: #fff; }");
 	Window *window = new Window();
 	return a.exec();
 }

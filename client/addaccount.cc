@@ -98,7 +98,7 @@ void AddAccount::check()
 
 AddAccount::AddAccount(QObject *parent)
 {
-	this->setWindowTitle("Add account");
+	this->setWindowTitle("Add account - Clade Chat");
 	this->setFixedSize(QSize(240, 120));
 	this->label = new QLabel("Type account name to add to\nyour contact list.", this);
 	this->label->move(10, 10);

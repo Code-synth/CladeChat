@@ -142,7 +142,7 @@ chatWindow::chatWindow(chat_thread *cthread, int thread, char *ct)
 	this->ct = ct;
 	char title[64];
 	memset(title, 0, sizeof(title));
-	sprintf(title, "%s - Chat window", this->cthread->cont->name);
+	sprintf(title, "%s - Clade Chat", this->cthread->cont->name);
 	this->setWindowTitle(title);
 	this->setFixedSize(QSize(180, 285));
 	msg_text = new QTextEdit(this);

@@ -1,18 +1,15 @@
-build:
-	cd server && make
-	cd client && mkdir -p build && cd build && cmake .. && make
-
-cert: domain.crt domain.key
+build domain.crt domain.key:
 	cp domain.crt server
-	cp domain.crt client
 	cp domain.key server
-	cp domain.key client
+	cd server && make
+	mkdir -p client/build
+	cp domain.crt client/build
+	cp domain.key client/build
+	cd client && cd build && cmake .. && make
+	cp client/*.png client/build
 
 clean:
 	-rm server/domain.crt
-	-rm client/domain.crt
 	-rm server/domain.key
-	-rm client/domain.key
-	-rm client/chat
 	-cd server && make clean
 	-cd client && rm -rf build
