@@ -315,6 +315,7 @@ void Window::signInFunc()
 				contacts[l].name[j] = buf[i], i++, j++
 			);
 			contacts[l].name[j] = 0;
+			contacts[l].newly = 0;
 			if (l == cn) cn++;
 		}
 		BIO_free(out);
