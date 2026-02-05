@@ -1,13 +1,19 @@
-cmake_minimum_required (VERSION 3.17.0)
+cmake_minimum_required (VERSION 3.5)
 
 project (CladeChat VERSION 0.8.0 LANGUAGES CXX)
 
-set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD 98)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set (CMAKE_INCLUDE_CURRENT_DIR ON)
 
-set(MOC_SOURCE
+find_package(Qt5 REQUIRED COMPONENTS Core Widgets Concurrent)
+
+find_package(OpenSSL)
+
+#qt_standard_project_setup()
+
+qt_wrap_cpp(moc_sources
 	actions.hh
 	addaccount.hh
 	chatwindow.hh
@@ -18,26 +24,16 @@ set(MOC_SOURCE
 	window.hh
 )
 
-set (CMAKE_AUTOMOC ON)
-set (CMAKE_AUTOUIC ON)
-
-find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
-
-find_package(OpenSSL)
-
-qt_standard_project_setup()
-
-qt_add_executable(CladeChat
+add_executable(CladeChat
 	client.cc
 	addaccount.cc
 	chatwindow.cc
 	chatworker.cc
 	userworker.cc
 	window.cc
+	${moc_sources}
 )
 
-target_link_libraries(CladeChat PRIVATE Qt6::Widgets Qt6::Concurrent)
+target_link_libraries(CladeChat PRIVATE Qt5::Widgets Qt5::Concurrent)
 
 target_link_libraries(CladeChat PRIVATE OpenSSL::SSL)
-
-install (TARGETS CladeChat DESTINATION bin)
