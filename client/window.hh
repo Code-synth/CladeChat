@@ -7,6 +7,7 @@
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTreeWidget>
 #include <QtWidgets/QTreeWidgetItem>
+#include <QSystemTrayIcon>
 #include <QStringList>
 #include <QPainter>
 
@@ -39,6 +40,7 @@ public:
 	QPushButton *signout;
 	QThread *thread;
 	userWorker *uworker;
+	QSystemTrayIcon *trayIcon;
 private slots:
 	void quit();
 	void add();

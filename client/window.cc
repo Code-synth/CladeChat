@@ -155,7 +155,6 @@ void Window::prepareMenu(const QPoint &pos)
 {
 	QTreeWidgetItem *nd = this->view->itemAt(pos);
 	if (nd) {
-		qDebug() << nd->text(0);
 		this->rmUser = nd->text(0);
 		QAction *rmAct = new QAction("Remove from list");
 		connect(rmAct, SIGNAL(triggered()), this, SLOT(rmFunc()));
@@ -365,6 +364,8 @@ void Window::signInFunc()
 			}
 			fclose(fp);
 		}
+		char msg[48];
+		memset(msg, 0, sizeof(msg));
 		for (
 			i = 0;
 			i < cn;
@@ -376,10 +377,16 @@ void Window::signInFunc()
 				contacts[i].online = bufi[1];
 				contacts[i].readen = bufi[2];
 				if (contacts[i].readen) {
-					printf(
+					sprintf(
+						msg,
 						"%d unread messages from %s\n",
 						contacts[i].readen,
 						contacts[i].name
+					);
+					printf("%s", msg);
+					this->trayIcon->showMessage(
+						"Clade Chat",
+						msg
 					);
 				}
 			}
@@ -512,6 +519,7 @@ void Window::initWidgets()
 }
 
 Window::Window()
+	: trayIcon(new QSystemTrayIcon(this))
 {
 	this->setWindowTitle("Clade Chat");
 	this->setFixedSize(QSize(200, 270));
@@ -546,6 +554,11 @@ Window::Window()
 	aboutAct->setIcon(aboutp);
 	connect(aboutAct, &QAction::triggered, this, &Window::aboutProduct);
 	this->show();
+
+	auto appIcon = QIcon("exit.png");
+	this->trayIcon->setIcon(appIcon);
+	this->setWindowIcon(appIcon);
+	this->trayIcon->show();
 }
 
 void Window::closeEvent(QCloseEvent *event)
